@@ -75,19 +75,45 @@ with tab2:
 with tab3:
     st.subheader("Color Control")
     color = st.color_picker("Pick a color", value="#FF0000")
-    
-    # Convert hex to RGB
-    rgb = tuple(int(color.lstrip('#')[i:i+2], 16) for i in (0, 2, 4))
-    
+
+    st.markdown("### Or enter RGB values")
+    rgb_col1, rgb_col2, rgb_col3 = st.columns(3)
+    with rgb_col1:
+        r = st.number_input("R", min_value=0, max_value=255, value=255, step=1, key="rgb_r")
+    with rgb_col2:
+        g = st.number_input("G", min_value=0, max_value=255, value=0, step=1, key="rgb_g")
+    with rgb_col3:
+        b = st.number_input("B", min_value=0, max_value=255, value=0, step=1, key="rgb_b")
+
+    use_manual_rgb = st.checkbox("Use RGB values instead of color picker", value=False)
+
+    if use_manual_rgb:
+        rgb = (r, g, b)
+    else:
+        rgb = tuple(int(color.lstrip('#')[i:i+2], 16) for i in (0, 2, 4))
+
+    # Multi-select segments
+    segments = st.multiselect("Select Segments (0-3)", options=[0, 1, 2, 3], default=[0])
+
     if st.button("Apply Color"):
-        data = {"seg": [{"col": [list(rgb)]}]}
-        response = api_call("json", "POST", data)
-        if response and response.status_code == 200:
-            st.success("Color updated")
+        if not segments:
+            st.error("Please select at least one segment")
         else:
-            st.error("Failed to update color")
-    
-    st.write(f"RGB Values: R={rgb[0]}, G={rgb[1]}, B={rgb[2]}")
+            seg_data = []
+            for seg_id in segments:
+                seg_data.append({"id": seg_id, "col": [list(rgb)]})
+            data = {"seg": seg_data}
+            response = api_call("json", "POST", data)
+            if response and response.status_code == 200:
+                st.success(f"Color updated for segments: {segments}")
+            else:
+                st.error("Failed to update color")
+
+    st.write(f"Selected RGB: R={rgb[0]}, G={rgb[1]}, B={rgb[2]}")
+    if use_manual_rgb:
+        st.info("Using manual RGB values")
+    else:
+        st.info(f"Using color picker value {color}")
 
 # TAB 4: Effects
 with tab4:
@@ -95,20 +121,28 @@ with tab4:
     effect_id = st.number_input("Effect ID", value=0, min_value=0)
     speed = st.slider("Speed", 0, 255, 128)
     intensity = st.slider("Intensity", 0, 255, 128)
-    
+
+    # Allow applying effect to specific segments
+    segments_fx = st.multiselect("Select Segments to apply effect (0-3)", options=[0, 1, 2, 3], default=[0])
+
     if st.button("Apply Effect"):
-        data = {
-            "seg": [{
-                "fx": effect_id,
-                "sx": speed,
-                "ix": intensity
-            }]
-        }
-        response = api_call("json", "POST", data)
-        if response and response.status_code == 200:
-            st.success("Effect applied")
+        if not segments_fx:
+            st.error("Please select at least one segment")
         else:
-            st.error("Failed to apply effect")
+            seg_list = []
+            for seg_id in segments_fx:
+                seg_list.append({
+                    "id": seg_id,
+                    "fx": effect_id,
+                    "sx": speed,
+                    "ix": intensity
+                })
+            data = {"seg": seg_list}
+            response = api_call("json", "POST", data)
+            if response and response.status_code == 200:
+                st.success(f"Effect {effect_id} applied to segments: {segments_fx}")
+            else:
+                st.error("Failed to apply effect")
 
 # TAB 5: Segments
 with tab5:
